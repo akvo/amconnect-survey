@@ -2,15 +2,15 @@
 
 Draft, 19 Nov 2026. A short ranked survey, opened from the QR code on the teaser video's end card. It sits alongside the conversation logging at AMVest (23–26 Nov) and feeds the Jan–Feb sub-working-group workshops.
 
-## Files in this folder
+## Project files
 
 | File | What it is | Who edits it |
 | --- | --- | --- |
-| `questions.json` | The questions and options; the survey, validation and dashboard all read from it | Anyone, to change the survey |
-| `index.html` | The public survey page (`/`) | Rarely |
-| `admin.html` | The results dashboard (`/admin`, behind a passcode), with an Excel download | Rarely |
-| `manage.html` | The manage page (`/admin/manage`): every response in an expandable table, with remove and restore | Rarely |
-| `login.html` | The passcode page shown at `/admin` before logging in | Rarely |
+| `config/questions.json` | The questions and options; the survey, validation and dashboard all read from it | Anyone, to change the survey |
+| `static/index.html` | The public survey page (`/`) | Rarely |
+| `static/admin.html` | The results dashboard (`/admin`, behind a passcode), with an Excel download | Rarely |
+| `static/manage.html` | The manage page (`/admin/manage`): every response in an expandable table, with remove and restore | Rarely |
+| `static/login.html` | The passcode page shown at `/admin` before logging in | Rarely |
 | `server.py` | A single-file server using only the Python standard library; stores responses in SQLite | Developers |
 | `Dockerfile` | For Akvo's hosting | Developers |
 
@@ -25,7 +25,7 @@ Draft, 19 Nov 2026. A short ranked survey, opened from the QR code on the teaser
   2. **A persistent volume at `/data`.** Without one, responses are lost every time the container restarts.
   3. **`ADMIN_PASSCODE`** set as an environment secret (it overrides `.env`, which is not shipped in the Docker image). Share it only with the people who should see results.
 - **QR links:** use `https://<host>/?src=video` for the video end card and `?src=booth` for printed cards, so the dashboard can show which channel each response came from.
-- **Editing questions:** change `questions.json`. Every question has a code (`Q1`–`Q6`) and every option a code (`1`, `2`… with `98` for "None of these" and `99` for "Other"). Together they make the analysis codes shown in the spreadsheet and dashboard, such as `Q2.1`. Answers are saved by option `id`, so you can reword any question or option at any time without breaking the analysis. Once responses come in, never change an `id` or `code`, and never reuse one for a different meaning. To add an option, give it a new `id` and the next unused code. The server refuses to start if codes are missing or duplicated.
+- **Editing questions:** change `config/questions.json`. Every question has a code (`Q1`–`Q6`) and every option a code (`1`, `2`… with `98` for "None of these" and `99` for "Other"). Together they make the analysis codes shown in the spreadsheet and dashboard, such as `Q2.1`. Answers are saved by option `id`, so you can reword any question or option at any time without breaking the analysis. Once responses come in, never change an `id` or `code`, and never reuse one for a different meaning. To add an option, give it a new `id` and the next unused code. The server refuses to start if codes are missing or duplicated.
 
 ## How the survey leads to design decisions
 
@@ -71,5 +71,5 @@ The dashboard calculates steps 1–3 live. Steps 4–6 are done by hand.
 
 ## Still to decide
 - **Survey title.** It still says "Investor Quick Survey" although government officials can now answer. Consider "AMConnect Quick Survey".
-- **Follow-up contacts.** The email question was replaced by the comments question, so the survey no longer collects a list of people for follow-up calls. To bring it back, add a question with `"type": "email"` to `questions.json`; the server still supports it.
+- **Follow-up contacts.** The email question was replaced by the comments question, so the survey no longer collects a list of people for follow-up calls. To bring it back, add a question with `"type": "email"` to `config/questions.json`; the server still supports it.
 - **QR code.** Generate it once Akvo confirms the URL.
