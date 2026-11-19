@@ -1,0 +1,79 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-to-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Sanity Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile and validate config
+        run: |
+          python -m py_compile server.py
+          python -c "import json; json.load(open('config/questions.json'))"
+
+  build-push:
+    name: Build and Push to Registry
+    runs-on: ubuntu-latest
+    needs: [test]
+    environment: Production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Checkout Akvo composite actions
+        uses: actions/checkout@v4
+        with:
+          repository: akvo/composite-actions
+          path: composite-actions
+          ref: 0.0.11
+      - name: Docker Build Backend
+        uses: ./composite-actions/.github/actions/docker-build
+        with:
+          app-name: "amconnect-survey"
+          service-name: "backend"
+          dockerfile-location: "Dockerfile"
+          cluster-name: "production"
+      - name: Docker Push Backend
+        uses: ./composite-actions/.github/actions/docker-push
+        with:
+          app-name: "amconnect-survey"
+          service-name: "backend"
+          gcloud-sa: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_REGISTRY }}
+          cluster-name: "production"
+
+  rollout:
+    name: Rollout to the server
+    runs-on: ubuntu-latest
+    needs: [build-push]
+    environment: Production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Checkout Akvo composite actions
+        uses: actions/checkout@v4
+        with:
+          repository: akvo/composite-actions
+          path: composite-actions
+          ref: 0.0.11
+      - name: Rollout Backend
+        uses: ./composite-actions/.github/actions/k8s-rollout
+        with:
+          app-name: "amconnect-survey"
+          deployment-name: "backend-deployment"
+          container-name: "backend"
+          cluster-name: "production"
+          namespace-name: "amconnect-survey-namespace"
+          gcloud-sa: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_K8S }}
