@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMConnect Survey</title>
+<style>
+  :root { --blue: #0060A9; --slate: #231F20; --grey: #6D6E71; --line: #D9DADB; --tint: #E6EFF7; --bg: #F5F6F7; --red: #C73935; --yellow: #FCEE21; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--slate); font: 16px/1.45 Arial, Helvetica, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { border-bottom: 3px solid var(--blue); padding-bottom: 16px; margin-bottom: 8px; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .brand img { width: 56px; height: 56px; flex: none; }
+  h1 { font-size: 22px; margin: 0; }
+  .time { color: var(--blue); font-weight: bold; font-size: 14px; margin: 0 0 8px; }
+  .intro { margin: 0; color: var(--grey); }
+  fieldset { border: 0; padding: 0; margin: 24px 0 0; }
+  legend { font-weight: bold; font-size: 17px; padding: 0; }
+  .hint { color: var(--grey); font-size: 14px; margin: 4px 0 10px; }
+  .opt { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; margin: 0 0 8px; padding: 12px; min-height: 48px;
+         background: #fff; color: var(--slate); border: 1px solid var(--line); border-radius: 8px; font: inherit; cursor: pointer; }
+  .opt:hover { border-color: var(--blue); }
+  .opt:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+  .opt[aria-pressed="true"] { background: var(--tint); border-color: var(--blue); }
+  .badge { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-weight: bold; font-size: 14px; }
+  .opt[aria-pressed="true"] .badge { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .opt:disabled { opacity: .45; cursor: not-allowed; }
+  input[type=text], input[type=email], textarea { width: 100%; padding: 12px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--slate); }
+  textarea { resize: vertical; }
+  input:focus-visible, textarea:focus-visible { outline: 3px solid var(--blue); outline-offset: 1px; }
+  .othertext { margin: 0 0 8px; }
+  button.submit { margin-top: 28px; width: 100%; padding: 14px; background: var(--blue); color: #fff; border: 0; border-radius: 8px; font: bold 17px Arial, sans-serif; cursor: pointer; }
+  button.submit:disabled { opacity: .6; }
+  .error { color: var(--red); font-weight: bold; margin-top: 12px; }
+  .done { text-align: center; padding: 48px 24px 56px; margin-top: 24px; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
+  .done .tick { width: 72px; height: 72px; margin: 0 auto 20px; border-radius: 50%; background: var(--blue); display: grid; place-items: center; }
+  .done h2 { font-size: 26px; margin: 0 0 8px; color: var(--blue); }
+  .done p { font-size: 17px; margin: 0 auto; max-width: 420px; }
+  .done .stripe { display: flex; width: 120px; height: 4px; margin: 24px auto 16px; border-radius: 2px; overflow: hidden; }
+  .done .stripe i { flex: 1; } .done .stripe i:nth-child(1) { background: var(--blue); } .done .stripe i:nth-child(2) { background: #EF3E33; } .done .stripe i:nth-child(3) { background: var(--yellow); }
+  .done small { color: var(--grey); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand"><img src="/logo.svg" alt="ASEAN emblem"><h1 id="title">AMConnect</h1></div>
+    <p class="time" id="time"></p>
+    <p class="intro" id="intro"></p>
+  </header>
+  <form id="form" novalidate></form>
+  <p class="error" id="error" role="alert"></p>
+</main>
+<script>
+const form = document.getElementById('form');
+const errorEl = document.getElementById('error');
+const state = {}; // qid -> array of option ids, in rank order
+let Q;
+
+function el(tag, attrs = {}, text) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function render(q) {
+  document.getElementById('title').textContent = q.title;
+  document.getElementById('time').textContent = q.time;
+  document.getElementById('intro').textContent = q.intro;
+  q.questions.forEach((x, n) => {
+    const fs = el('fieldset');
+    fs.append(el('legend', {}, `${n + 1}. ${x.text}`), el('p', { class: 'hint', id: `h-${x.id}` }, x.hint || ''));
+    if (x.type === 'email') {
+      fs.append(el('input', { type: 'email', id: 'email', autocomplete: 'email', placeholder: 'name@company.com', 'aria-describedby': `h-${x.id}` }));
+    } else if (x.type === 'text') {
+      fs.append(el('textarea', { id: `text-${x.id}`, rows: '4', maxlength: '2000', 'aria-describedby': `h-${x.id}` }));
+    } else {
+      state[x.id] = [];
+      const max = x.type === 'single' ? 1 : x.max;
+      x.options.forEach(o => {
+        const b = el('button', { type: 'button', class: 'opt', 'aria-pressed': 'false', 'data-q': x.id, 'data-o': o.id });
+        b.append(el('span', { class: 'badge', 'aria-hidden': 'true' }), el('span', {}, o.label));
+        b.addEventListener('click', () => toggle(x, o, max));
+        fs.append(b);
+        if (o.other) {
+          const t = el('input', { type: 'text', class: 'othertext', id: `other-${x.id}`, maxlength: '300', placeholder: 'Please specify', hidden: '' });
+          fs.append(t);
+        }
+      });
+    }
+    form.append(fs);
+  });
+  const s = el('button', { type: 'submit', class: 'submit' }, 'Send');
+  form.append(s);
+}
+
+function toggle(x, o, max) {
+  let picks = state[x.id];
+  if (picks.includes(o.id)) picks = picks.filter(p => p !== o.id);
+  else if (max === 1) picks = [o.id];
+  else if (o.exclusive) picks = [o.id];
+  else {
+    picks = picks.filter(p => !x.options.find(z => z.id === p).exclusive);
+    if (picks.length < max) picks.push(o.id);
+  }
+  state[x.id] = picks;
+  paint(x, max);
+}
+
+function paint(x, max) {
+  const picks = state[x.id];
+  form.querySelectorAll(`.opt[data-q="${x.id}"]`).forEach(b => {
+    const i = picks.indexOf(b.dataset.o);
+    b.setAttribute('aria-pressed', i >= 0 ? 'true' : 'false');
+    b.querySelector('.badge').textContent = i >= 0 && max > 1 ? i + 1 : (i >= 0 ? '✓' : '');
+    const label = b.lastChild.textContent;
+    b.setAttribute('aria-label', i >= 0 ? (max > 1 ? `${label}, ranked ${i + 1}` : `${label}, selected`) : label);
+    b.disabled = i < 0 && max > 1 && picks.length >= max;
+  });
+  const t = document.getElementById(`other-${x.id}`);
+  if (t) t.hidden = !picks.includes(x.options.find(o => o.other).id);
+}
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  errorEl.textContent = '';
+  const missing = Q.questions.find(x => !x.optional && !state[x.id].length);
+  if (missing) {
+    errorEl.textContent = `Please answer question ${Q.questions.indexOf(missing) + 1}.`;
+    form.querySelector(`.opt[data-q="${missing.id}"]`).focus();
+    return;
+  }
+  const answers = {}, other = {}, text = {};
+  for (const x of Q.questions) {
+    if (x.type === 'email') continue;
+    if (x.type === 'text') { text[x.id] = document.getElementById(`text-${x.id}`).value; continue; }
+    answers[x.id] = x.type === 'single' ? state[x.id][0] : state[x.id];
+    const t = document.getElementById(`other-${x.id}`);
+    if (t && !t.hidden) other[x.id] = t.value;
+  }
+  const emailEl = document.getElementById('email');
+  const body = { answers, other, text, email: emailEl ? emailEl.value : '', src: new URLSearchParams(location.search).get('src') || '' };
+  const btn = form.querySelector('.submit');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    const r = await fetch('/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
+    const done = el('section', { class: 'done', role: 'status' });
+    done.innerHTML = '<div class="tick"><svg width="36" height="36" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>'
+      + '<div class="stripe" aria-hidden="true"><i></i><i></i><i></i></div>';
+    done.insertBefore(el('h2', {}, 'Thank you'), done.lastChild);
+    done.insertBefore(el('p', {}, Q.thanks), done.lastChild);
+    done.append(el('small', {}, 'You can now close this page.'));
+    form.replaceWith(done);
+    document.querySelector('header .intro').hidden = true;
+    document.getElementById('time').hidden = true;
+    window.scrollTo(0, 0);
+  } catch (err) {
+    errorEl.textContent = `Your answers were not sent (${err.message}). Please check your connection and press Send again.`;
+    btn.disabled = false; btn.textContent = 'Send';
+  }
+});
+
+fetch('/questions.json').then(r => r.json()).then(q => { Q = q; render(q); })
+  .catch(() => { errorEl.textContent = 'The survey could not load. Please refresh the page.'; });
+</script>
+</body>
+</html>

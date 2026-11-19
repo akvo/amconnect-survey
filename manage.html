@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manage Survey Responses</title>
+<style>
+  :root { --blue: #0060A9; --blue-dark: #004A82; --slate: #231F20; --grey: #6D6E71; --line: #E3E4E5; --tint: #E6EFF7; --bg: #F3F5F7; --red: #C73935; --yellow: #FCEE21; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--slate); font: 15px/1.45 Arial, Helvetica, sans-serif; }
+  .topbar { background: #fff; border-bottom: 1px solid var(--line); }
+  .topbar .in { max-width: 1080px; margin: 0 auto; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand img { width: 44px; height: 44px; }
+  .brand h1 { font-size: 20px; margin: 0; }
+  .sub { color: var(--grey); font-size: 13px; }
+  .stripe { display: flex; height: 4px; } .stripe i { flex: 1; } .stripe i:nth-child(1) { background: var(--blue); } .stripe i:nth-child(2) { background: #EF3E33; } .stripe i:nth-child(3) { background: var(--yellow); }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .btn, input[type=search] { font: inherit; font-size: 14px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--slate); text-decoration: none; cursor: pointer; }
+  .btn.ghost { border-color: transparent; color: var(--grey); }
+  .btn.danger { color: var(--red); border-color: #F0C9C7; }
+  .btn.danger:hover { background: #FBECEB; }
+  .btn.restore { color: var(--blue); border-color: #BCD3E8; }
+  .btn:focus-visible, input:focus-visible, .toggle:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+  main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 48px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .bar input[type=search] { min-width: 260px; flex: 1; max-width: 420px; }
+  .bar label { font-size: 14px; color: var(--grey); display: flex; gap: 6px; align-items: center; }
+  .summary { font-size: 14px; color: var(--grey); }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th { text-align: left; color: var(--grey); font-size: 12px; font-weight: normal; padding: 12px 10px; background: #FAFBFB; border-bottom: 1px solid var(--line); }
+  td { padding: 10px; border-top: 1px solid var(--line); vertical-align: top; }
+  tr.main:hover td { background: #FAFBFC; }
+  tr.main { cursor: pointer; }
+  .toggle { border: 0; background: none; padding: 0; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--grey); font-size: 14px; }
+  .toggle[aria-expanded="true"] { color: var(--blue); }
+  .toggle span { display: inline-block; transition: transform .15s; }
+  .toggle[aria-expanded="true"] span { transform: rotate(90deg); }
+  .id { font-variant-numeric: tabular-nums; color: var(--grey); }
+  .clip { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill { display: inline-block; white-space: nowrap; font-size: 12px; font-weight: bold; border-radius: 999px; padding: 2px 9px; background: #E7F4EC; color: #1E6B3D; }
+  .pill.removed { background: #FBECEB; color: var(--red); }
+  tr.is-removed td:not(:last-child) { color: var(--grey); }
+  tr.is-removed .who { text-decoration: line-through; }
+  tr.detail td { background: #FAFBFC; border-top: 0; padding: 4px 16px 18px 44px; }
+  dl { display: grid; grid-template-columns: minmax(180px, 280px) 1fr; gap: 10px 20px; margin: 8px 0 14px; }
+  dt { color: var(--grey); font-size: 13px; }
+  dt b { color: var(--blue); margin-right: 4px; }
+  dd { margin: 0; }
+  dd ol { margin: 0; padding-left: 20px; }
+  dd .code { color: var(--grey); font-size: 12px; margin-right: 6px; }
+  dd .free { display: block; margin-top: 4px; padding: 6px 10px; background: #fff; border-left: 3px solid var(--blue); border-radius: 0 6px 6px 0; white-space: pre-wrap; }
+  .empty { text-align: center; color: var(--grey); padding: 40px 16px; }
+  .msg { color: var(--red); font-weight: bold; }
+  @media (max-width: 720px) { .hide-sm { display: none; } dl { grid-template-columns: 1fr; gap: 2px; } dd { margin-bottom: 10px; } tr.detail td { padding-left: 16px; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="in">
+    <div class="brand">
+      <img src="/logo.svg" alt="ASEAN emblem">
+      <div><h1>Manage responses</h1><div class="sub">Remove test or rogue entries. Removed entries leave the results and the Excel download, and can be restored.</div></div>
+    </div>
+    <div class="controls">
+      <a class="btn" href="/admin">← Results</a>
+      <a class="btn ghost" href="/admin/logout">Log out</a>
+    </div>
+  </div>
+  <div class="stripe" aria-hidden="true"><i></i><i></i><i></i></div>
+</div>
+<main>
+  <div class="bar">
+    <input type="search" id="q" placeholder="Search answers, comments, source…" aria-label="Search responses">
+    <label><input type="checkbox" id="showRemoved" checked> Show removed</label>
+    <span class="summary" id="summary" role="status"></span>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th style="width:40px"><span class="sr" hidden>Expand</span></th><th>#</th><th>Submitted</th><th class="hide-sm">Source</th><th>Role</th><th class="hide-sm">Comment</th><th>Status</th></tr></thead>
+      <tbody id="body"></tbody>
+    </table>
+  </div>
+  <p class="msg" id="msg" role="alert"></p>
+</main>
+<script>
+const body = document.getElementById('body');
+const qBox = document.getElementById('q');
+const showRemoved = document.getElementById('showRemoved');
+const open = new Set();  // ids of expanded rows, kept across re-renders
+let D = null;
+
+function el(tag, attrs = {}, text) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text != null) e.textContent = text;
+  return e;
+}
+const fmt = ts => { const d = new Date(ts); return isNaN(d) ? ts : d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); };
+
+function answerText(r, x) {
+  // Plain-text version of one answer, used for search.
+  if (x.type === 'text') return r.text?.[x.id] || '';
+  if (x.type === 'email') return r.email || '';
+  const lab = Object.fromEntries(x.options.map(o => [o.id, o.label]));
+  return (r.answers[x.id] || []).map(p => lab[p] || p).join(' ') + ' ' + (r.other?.[x.id] || '');
+}
+
+function detail(r) {
+  const dl = el('dl');
+  for (const x of D.questions_def.questions) {
+    const dt = el('dt'); dt.append(el('b', {}, x.code), document.createTextNode(x.text));
+    const dd = el('dd');
+    if (x.type === 'text' || x.type === 'email') {
+      const v = x.type === 'text' ? r.text?.[x.id] : r.email;
+      v ? dd.append(el('span', { class: 'free' }, v)) : dd.append(el('span', { class: 'code' }, 'No answer'));
+    } else {
+      const picks = r.answers[x.id] || [];
+      const list = el(x.type === 'rank' ? 'ol' : 'div');
+      picks.forEach(p => {
+        const o = x.options.find(o => o.id === p);
+        const item = el(x.type === 'rank' ? 'li' : 'div');
+        item.append(el('span', { class: 'code' }, o ? `${x.code}.${o.code}` : p), document.createTextNode(o ? o.label : '(option no longer in questions.json)'));
+        list.append(item);
+      });
+      dd.append(picks.length ? list : el('span', { class: 'code' }, 'No answer'));
+      if (r.other?.[x.id]) dd.append(el('span', { class: 'free' }, `Other: ${r.other[x.id]}`));
+    }
+    dl.append(dt, dd);
+  }
+  const td = el('td', { colspan: 7 });
+  const btn = el('button', { type: 'button', class: `btn ${r.deleted ? 'restore' : 'danger'}` }, r.deleted ? 'Restore to results' : 'Remove from results');
+  btn.addEventListener('click', () => setRemoved(r, !r.deleted, btn));
+  td.append(dl, btn);
+  const tr = el('tr', { class: 'detail', id: `detail-${r.id}` }); tr.append(td);
+  return tr;
+}
+
+function render() {
+  const term = qBox.value.trim().toLowerCase();
+  const qs = D.questions_def.questions;
+  const roleQ = qs.find(x => x.id === 'role');
+  const commentQ = qs.find(x => x.type === 'text');
+  const rows = D.rows.filter(r => (showRemoved.checked || !r.deleted) &&
+    (!term || [r.id, r.src, fmt(r.ts), ...qs.map(x => answerText(r, x))].join(' ').toLowerCase().includes(term)));
+  const live = D.rows.filter(r => !r.deleted).length;
+  document.getElementById('summary').textContent =
+    `${live} in results, ${D.rows.length - live} removed${term || !showRemoved.checked ? ` · showing ${rows.length}` : ''}`;
+  body.replaceChildren();
+  if (!rows.length) { const tr = el('tr'); tr.append(el('td', { colspan: 7, class: 'empty' }, D.rows.length ? 'No responses match.' : 'No responses yet.')); body.append(tr); return; }
+  for (const r of rows) {
+    const tr = el('tr', { class: `main${r.deleted ? ' is-removed' : ''}` });
+    const isOpen = open.has(r.id);
+    const t = el('button', { type: 'button', class: 'toggle', 'aria-expanded': String(isOpen), 'aria-controls': `detail-${r.id}`, 'aria-label': `Show all answers for response ${r.id}` });
+    t.append(el('span', { 'aria-hidden': 'true' }, '▶'));
+    const td0 = el('td'); td0.append(t);
+    const role = roleQ ? answerText(r, roleQ).trim() : '';
+    const comment = commentQ ? r.text?.[commentQ.id] || '' : '';
+    const status = el('td'); status.append(el('span', { class: `pill${r.deleted ? ' removed' : ''}` }, r.deleted ? 'Removed' : 'In results'));
+    tr.append(td0, el('td', { class: 'id' }, r.id), el('td', {}, fmt(r.ts)), el('td', { class: 'hide-sm' }, r.src || 'direct'),
+              el('td', { class: 'who' }, role), el('td', { class: 'hide-sm clip', title: comment }, comment || '–'), status);
+    tr.addEventListener('click', e => { if (e.target.closest('a, input')) return; open.has(r.id) ? open.delete(r.id) : open.add(r.id); render(); });
+    body.append(tr);
+    if (isOpen) body.append(detail(r));
+  }
+}
+
+async function setRemoved(r, removed, btn) {
+  if (removed && !confirm(`Remove response #${r.id} from the results and the Excel download? You can restore it later.`)) return;
+  btn.disabled = true;
+  const res = await fetch('/admin/responses/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id, removed }) }).catch(() => null);
+  if (res?.status === 401) { location.href = '/admin'; return; }
+  if (!res?.ok) { document.getElementById('msg').textContent = `Could not update response #${r.id}. Please try again.`; btn.disabled = false; return; }
+  document.getElementById('msg').textContent = '';
+  r.deleted = removed;
+  render();
+}
+
+async function load() {
+  const res = await fetch('/admin/responses.json').catch(() => null);
+  if (res?.status === 401) { location.href = '/admin'; return; }
+  if (!res?.ok) { document.getElementById('msg').textContent = 'Could not load responses. Please refresh the page.'; return; }
+  D = await res.json();
+  render();
+}
+qBox.addEventListener('input', render);
+showRemoved.addEventListener('change', render);
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+{
+  "title": "AMConnect – Quick Survey",
+  "time": "About 1 minute",
+  "intro": "We are developing AMConnect, an ASEAN-wide minerals knowledge and information platform. Tell us what information would help you most when assessing investment opportunities in critical minerals in the region.",
+  "thanks": "Your answers will help shape AMConnect.",
+  "quadrant": { "value": "value", "difficulty": "difficulty" },
+  "questions": [
+    {
+      "id": "role",
+      "code": "Q1",
+      "type": "single",
+      "text": "Which best describes your role?",
+      "hint": "Select one.",
+      "options": [
+        { "id": "mining", "code": "1", "label": "Mining company (exploration or production)" },
+        { "id": "downstream", "code": "2", "label": "Processor, downstream manufacturer or offtaker" },
+        { "id": "finance", "code": "3", "label": "Financier, fund or investment institution" },
+        { "id": "advisor", "code": "4", "label": "Investment analyst or advisor" },
+        { "id": "government", "code": "5", "label": "Government or ASEAN official" },
+        { "id": "other", "code": "99", "label": "Other", "other": true }
+      ]
+    },
+    {
+      "id": "value",
+      "code": "Q2",
+      "type": "rank",
+      "max": 3,
+      "text": "What information would be most valuable to you when assessing investment opportunities in critical minerals in ASEAN?",
+      "hint": "Tap up to 3, most important first. Include information that is hard to find or not available today.",
+      "options": [
+        { "id": "geology", "code": "1", "label": "Geological data, resources and mineral potential", "module": "WebGIS" },
+        { "id": "projects", "code": "2", "label": "Mining, processing and refining projects (status, ownership)", "module": "WebGIS" },
+        { "id": "regulation", "code": "3", "label": "Mining regulations, licensing and fiscal terms", "module": "Landing Page / AI" },
+        { "id": "infrastructure", "code": "4", "label": "Infrastructure, energy and logistics", "module": "WebGIS" },
+        { "id": "esg", "code": "5", "label": "ESG performance, environmental and social risks", "module": "Landing Page" },
+        { "id": "markets", "code": "6", "label": "Value chains, markets and prices", "module": "Landing Page" },
+        { "id": "incentives", "code": "7", "label": "Investment incentives and government policy", "module": "Landing Page" },
+        { "id": "other", "code": "99", "label": "Other", "other": true }
+      ]
+    },
+    {
+      "id": "difficulty",
+      "code": "Q3",
+      "type": "rank",
+      "max": 3,
+      "options_from": "value",
+      "text": "Which of these are hardest for you to access today?",
+      "hint": "Tap up to 3, hardest first."
+    },
+    {
+      "id": "useful",
+      "code": "Q4",
+      "type": "rank",
+      "max": 3,
+      "text": "What would make AMConnect most useful to you?",
+      "hint": "Tap up to 3, most useful first.",
+      "options": [
+        { "id": "profiles", "code": "1", "label": "Country and project profiles you can compare", "module": "Landing Page" },
+        { "id": "maps", "code": "2", "label": "Interactive maps and geospatial data", "module": "WebGIS" },
+        { "id": "downloads", "code": "3", "label": "Downloadable datasets and reports", "module": "WebGIS" },
+        { "id": "guidance", "code": "4", "label": "Clear regulatory and investment guidance", "module": "Landing Page / AI" },
+        { "id": "contacts", "code": "5", "label": "Contacts at government agencies or projects", "module": "AMVest" },
+        { "id": "other", "code": "99", "label": "Other", "other": true }
+      ]
+    },
+    {
+      "id": "ai",
+      "code": "Q5",
+      "type": "rank",
+      "max": 3,
+      "text": "Which AI features would be most useful to you?",
+      "hint": "Tap up to 3, most useful first.",
+      "options": [
+        { "id": "nl_search", "code": "1", "label": "Ask questions in plain language", "module": "AI" },
+        { "id": "opportunity", "code": "2", "label": "Opportunity mapping based on your company profile", "module": "AI" },
+        { "id": "permits", "code": "3", "label": "Step-by-step permit and licensing guidance", "module": "AI" },
+        { "id": "regulations", "code": "4", "label": "Regulations compiled across ministries", "module": "AI" },
+        { "id": "ai_maps", "code": "5", "label": "AI-assisted mineral maps", "module": "AI / WebGIS" },
+        { "id": "summaries", "code": "6", "label": "Report summaries with links to sources", "module": "AI" },
+        { "id": "none", "code": "98", "label": "None of these", "exclusive": true },
+        { "id": "other", "code": "99", "label": "Other", "other": true }
+      ]
+    },
+    {
+      "id": "comments",
+      "code": "Q6",
+      "type": "text",
+      "optional": true,
+      "text": "Anything else you would like to tell us?",
+      "hint": "Optional. Add any information or comments, for example, data you need or how you would use AMConnect."
+    }
+  ]
+}
