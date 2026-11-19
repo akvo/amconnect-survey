@@ -1,7 +1,7 @@
 """AMConnect survey: public form at /, passcode-protected dashboard and exports under /admin.
 
 Run: python3 server.py   (settings in .env next to this file, see .env.example)
-Edit questions in questions.json; the form, validation and dashboard all read it.
+Edit questions in config/questions.json; the form, validation and dashboard all read it.
 """
 import hashlib, hmac, io, json, os, re, sqlite3, sys, time, zipfile
 from xml.sax.saxutils import escape
@@ -27,7 +27,7 @@ MAX_COMMENT = 2000
 
 
 def load_questions():
-    q = json.loads((HERE / "questions.json").read_text(encoding="utf-8"))
+    q = json.loads((HERE / "config" / "questions.json").read_text(encoding="utf-8"))
     by_id = {x["id"]: x for x in q["questions"]}
     for x in q["questions"]:
         if "options_from" in x:
@@ -46,13 +46,13 @@ def check_codes(q):
     """Codes keep the analysis stable when wording changes, so they must be present and unique."""
     qcodes = [x.get("code") for x in q["questions"]]
     if None in qcodes or len(set(qcodes)) != len(qcodes):
-        raise ValueError(f"questions.json: every question needs a unique code, got {qcodes}")
+        raise ValueError(f"config/questions.json: every question needs a unique code, got {qcodes}")
     for x in q["questions"]:
         opts = x.get("options", [])
         for key in ("id", "code"):
             vals = [o.get(key) for o in opts]
             if None in vals or len(set(vals)) != len(vals):
-                raise ValueError(f"questions.json: {x['code']} options need a unique {key}, got {vals}")
+                raise ValueError(f"config/questions.json: {x['code']} options need a unique {key}, got {vals}")
 
 
 def db():
@@ -295,9 +295,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         u = urlparse(self.path)
         if u.path == "/":
-            return self.send(200, (HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
+            return self.send(200, (HERE / "static" / "index.html").read_bytes(), "text/html; charset=utf-8")
         if u.path == "/logo.svg":
-            return self.send(200, (HERE / "ASEANEmblem11_RGB.svg").read_bytes(), "image/svg+xml")
+            return self.send(200, (HERE / "static" / "ASEANEmblem11_RGB.svg").read_bytes(), "image/svg+xml")
         if u.path == "/questions.json":
             return self.send(200, json.dumps(load_questions()))
         if u.path.startswith("/admin"):
@@ -305,12 +305,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.redirect("/admin", {"Set-Cookie": self.cookie("", 0)})
             if not self.authed():
                 if u.path in ("/admin", "/admin/", "/admin/manage"):
-                    return self.send(200, (HERE / "login.html").read_bytes(), "text/html; charset=utf-8")
+                    return self.send(200, (HERE / "static" / "login.html").read_bytes(), "text/html; charset=utf-8")
                 return self.send(401, json.dumps({"error": "passcode required"}))
             if u.path in ("/admin", "/admin/"):
-                return self.send(200, (HERE / "admin.html").read_bytes(), "text/html; charset=utf-8")
+                return self.send(200, (HERE / "static" / "admin.html").read_bytes(), "text/html; charset=utf-8")
             if u.path == "/admin/manage":
-                return self.send(200, (HERE / "manage.html").read_bytes(), "text/html; charset=utf-8")
+                return self.send(200, (HERE / "static" / "manage.html").read_bytes(), "text/html; charset=utf-8")
             if u.path == "/admin/responses.json":
                 return self.send(200, json.dumps({"questions_def": load_questions(), "rows": manage_rows()}))
             if u.path == "/admin/results.json":
@@ -403,7 +403,7 @@ if __name__ == "__main__":
     self_check()
     if len(PASSCODE) < 6:
         sys.exit("Set ADMIN_PASSCODE (at least 6 characters) in .env before starting.")
-    load_questions()  # fail fast on a broken questions.json
+    load_questions()  # fail fast on a broken config/questions.json
     db().close()
     port = int(os.environ.get("PORT", "8000"))
     print(f"Survey on http://localhost:{port}/  (admin: /admin)", flush=True)

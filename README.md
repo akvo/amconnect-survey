@@ -4,6 +4,16 @@ A short ranked survey for AMVest 2026, opened from the QR code on the AMConnect 
 
 It needs only Python 3 (standard library) and stores responses in SQLite.
 
+## Layout
+
+```
+server.py               the whole server (Python standard library only)
+config/questions.json   the survey questions and options
+static/                 the HTML pages and the logo
+docs/survey-plan.md     survey design and analysis notes
+Dockerfile              for deployment
+```
+
 ## Run locally
 
 ```
@@ -17,7 +27,7 @@ python3 server.py
 
 ## Change the questions
 
-Edit `questions.json`. You can reword questions and options at any time. Once responses come in, never change or reuse an option's `id` or `code`.
+Edit `config/questions.json`. You can reword questions and options at any time. Once responses come in, never change or reuse an option's `id` or `code`.
 
 ## Deploy
 
@@ -28,4 +38,4 @@ Use the `Dockerfile`. The host needs to provide:
 
 `.env` and `survey.db` are git-ignored and never committed.
 
-See [survey-plan.md](survey-plan.md) for how the questions map to design decisions and how the data is analysed.
+See [docs/survey-plan.md](docs/survey-plan.md) for how the questions map to design decisions and how the data is analysed.
