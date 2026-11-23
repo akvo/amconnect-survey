@@ -301,6 +301,8 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/questions.json":
             return self.send(200, json.dumps(load_questions()))
         if u.path.startswith("/admin"):
+            if u.path == "/admin/login":  # login is POST-only; a typed or bookmarked URL lands here
+                return self.redirect("/admin")
             if u.path == "/admin/logout":
                 return self.redirect("/admin", {"Set-Cookie": self.cookie("", 0)})
             if not self.authed():

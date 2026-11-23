@@ -17,13 +17,14 @@
   .intro { margin: 0; color: var(--grey); }
   fieldset { border: 0; padding: 0; margin: 24px 0 0; }
   legend { font-weight: bold; font-size: 17px; padding: 0; }
-  .hint { color: var(--grey); font-size: 14px; margin: 4px 0 10px; }
+  .hint { display: block; color: var(--blue); font-style: italic; font-weight: normal; font-size: 15px; margin: 4px 0 10px; }
   .opt { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; margin: 0 0 8px; padding: 12px; min-height: 48px;
          background: #fff; color: var(--slate); border: 1px solid var(--line); border-radius: 8px; font: inherit; cursor: pointer; }
   .opt:hover { border-color: var(--blue); }
   .opt:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
   .opt[aria-pressed="true"] { background: var(--tint); border-color: var(--blue); }
   .badge { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-weight: bold; font-size: 14px; }
+  .opt.multi .badge { border-radius: 6px; } /* square = checkbox: several answers allowed */
   .opt[aria-pressed="true"] .badge { background: var(--blue); border-color: var(--blue); color: #fff; }
   .opt:disabled { opacity: .45; cursor: not-allowed; }
   input[type=text], input[type=email], textarea { width: 100%; padding: 12px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--slate); }
@@ -71,7 +72,9 @@ function render(q) {
   document.getElementById('intro').textContent = q.intro;
   q.questions.forEach((x, n) => {
     const fs = el('fieldset');
-    fs.append(el('legend', {}, `${n + 1}. ${x.text}`), el('p', { class: 'hint', id: `h-${x.id}` }, x.hint || ''));
+    const lg = el('legend', {}, `${n + 1}. ${x.text}`);
+    lg.append(el('span', { class: 'hint', id: `h-${x.id}` }, x.hint || ''));
+    fs.append(lg);
     if (x.type === 'email') {
       fs.append(el('input', { type: 'email', id: 'email', autocomplete: 'email', placeholder: 'name@company.com', 'aria-describedby': `h-${x.id}` }));
     } else if (x.type === 'text') {
@@ -80,7 +83,7 @@ function render(q) {
       state[x.id] = [];
       const max = x.type === 'single' ? 1 : x.max;
       x.options.forEach(o => {
-        const b = el('button', { type: 'button', class: 'opt', 'aria-pressed': 'false', 'data-q': x.id, 'data-o': o.id });
+        const b = el('button', { type: 'button', class: max > 1 ? 'opt multi' : 'opt', 'aria-pressed': 'false', 'data-q': x.id, 'data-o': o.id });
         b.append(el('span', { class: 'badge', 'aria-hidden': 'true' }), el('span', {}, o.label));
         b.addEventListener('click', () => toggle(x, o, max));
         fs.append(b);
