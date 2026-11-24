@@ -57,6 +57,7 @@
 const form = document.getElementById('form');
 const errorEl = document.getElementById('error');
 const state = {}; // qid -> array of option ids, in rank order
+const shown = {}; // qid -> option ids in the order shown (ranked questions are shuffled)
 let Q;
 
 function el(tag, attrs = {}, text) {
@@ -78,11 +79,19 @@ function render(q) {
     if (x.type === 'email') {
       fs.append(el('input', { type: 'email', id: 'email', autocomplete: 'email', placeholder: 'name@company.com', 'aria-describedby': `h-${x.id}` }));
     } else if (x.type === 'text') {
-      fs.append(el('textarea', { id: `text-${x.id}`, rows: '4', maxlength: '2000', 'aria-describedby': `h-${x.id}` }));
+      fs.append(el('textarea', { id: `text-${x.id}`, rows: '4', maxlength: '2000', placeholder: x.placeholder || '', 'aria-describedby': `h-${x.id}` }));
     } else {
       state[x.id] = [];
       const max = x.type === 'single' ? 1 : x.max;
-      x.options.forEach(o => {
+      let opts = x.options;
+      if (x.type === 'rank') {  // shuffle to remove order bias; Other / None of these stay last
+        const pinned = opts.filter(o => o.other || o.exclusive);
+        const free = opts.filter(o => !pinned.includes(o));
+        for (let i = free.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [free[i], free[j]] = [free[j], free[i]]; }
+        opts = free.concat(pinned);
+        shown[x.id] = opts.map(o => o.id);
+      }
+      opts.forEach(o => {
         const b = el('button', { type: 'button', class: max > 1 ? 'opt multi' : 'opt', 'aria-pressed': 'false', 'data-q': x.id, 'data-o': o.id });
         b.append(el('span', { class: 'badge', 'aria-hidden': 'true' }), el('span', {}, o.label));
         b.addEventListener('click', () => toggle(x, o, max));
@@ -144,7 +153,7 @@ form.addEventListener('submit', async e => {
     if (t && !t.hidden) other[x.id] = t.value;
   }
   const emailEl = document.getElementById('email');
-  const body = { answers, other, text, email: emailEl ? emailEl.value : '', src: new URLSearchParams(location.search).get('src') || '' };
+  const body = { answers, other, text, order: shown, email: emailEl ? emailEl.value : '', src: new URLSearchParams(location.search).get('src') || '' };
   const btn = form.querySelector('.submit');
   btn.disabled = true; btn.textContent = 'Sending…';
   try {

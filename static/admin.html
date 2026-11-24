@@ -72,6 +72,8 @@
     <div class="controls">
       <label for="role" class="sub">Role</label>
       <select id="role"><option value="">All roles</option></select>
+      <label for="order" class="sub">Option order</label>
+      <select id="order"><option value="">All orders</option></select>
       <a class="btn primary" href="/admin/export.xlsx">Download Excel</a>
       <a class="btn" href="/admin/manage">Manage responses</a>
       <a class="btn ghost" href="/admin/logout">Log out</a>
@@ -83,6 +85,7 @@
 <script>
 const out = document.getElementById('out');
 const roleSel = document.getElementById('role');
+const orderSel = document.getElementById('order');
 const pct = x => `${Math.round(x * 100)}%`;
 function el(tag, attrs = {}, text) {
   const e = document.createElement(tag);
@@ -138,8 +141,9 @@ function quadrant(d) {
 }
 
 async function load() {
-  const role = roleSel.value;
-  const r = await fetch('/admin/results.json' + (role ? `?role=${encodeURIComponent(role)}` : '')).catch(() => ({ ok: false, status: 0 }));
+  const role = roleSel.value, order = orderSel.value;
+  const qs = new URLSearchParams(Object.entries({ role, order }).filter(([, v]) => v));
+  const r = await fetch('/admin/results.json' + (qs.toString() ? `?${qs}` : '')).catch(() => ({ ok: false, status: 0 }));
   if (r.status === 401) { location.href = '/admin'; return; }  // session ended
   if (!r.ok) { document.getElementById('updated').textContent = 'Could not load results. Retrying in 30 seconds.'; return; }
   const d = await r.json();
@@ -151,6 +155,10 @@ async function load() {
       ...roleQ.options.map(o => el('option', { value: o.id }, `${o.label} (${d.by_role[o.id] || 0})`)));
     roleSel.value = role;
   }
+  orderSel.replaceChildren(el('option', { value: '' }, 'All orders'),
+    el('option', { value: 'fixed' }, `Fixed order (${d.by_order.fixed})`),
+    el('option', { value: 'shuffled' }, `Shuffled (${d.by_order.shuffled})`));
+  orderSel.value = order;
   const frag = document.createDocumentFragment();
 
   // KPI tiles
@@ -159,7 +167,7 @@ async function load() {
   Object.entries(d.by_src).sort((a, b) => b[1] - a[1]).forEach(([s, n]) => tile(tiles, `From ${s === 'direct' ? 'direct link' : s}`, n));
   const topRole = Object.entries(d.by_role).sort((a, b) => b[1] - a[1])[0];
   if (topRole && !role) tile(tiles, 'Largest group', labelOf('role', topRole[0]));
-  tile(tiles, 'Comments', d.comments.length);
+  tile(tiles, 'Comments', d.comments.filter(o => o.q === 'comments').length);
   frag.append(tiles);
 
   if (!d.n) {
@@ -216,6 +224,27 @@ async function load() {
   });
   frag.append(grid);
 
+  // Order bias: share of picks by screen position, fixed order vs shuffled
+  const ob = card(frag, 'Order bias', 'Share of each question\'s picks that went to the option shown at each screen position (Other and None of these are left out). If people ignore the order, every position gets about the same share. In shuffled responses the option at each position is random, so a high share for the top positions means people tick whatever is shown first. Ignores the option-order filter.');
+  const og = el('div', { class: 'grid2' });
+  d.questions.forEach(q => {
+    const { fixed, shuffled } = q.position, m = fixed.picks.length;
+    const sum = a => a.reduce((x, y) => x + y, 0);
+    const share = (g, i) => g.n < 5 ? '–' : pct(g.picks[i] / (sum(g.picks) || 1));
+    const top3 = g => g.n < 5 ? '–' : pct(sum(g.picks.slice(0, 3)) / (sum(g.picks) || 1));
+    const t = el('table');
+    const h = el('tr'); [`${q.code} position`, `Fixed (${fixed.n})`, `Shuffled (${shuffled.n})`, 'If no bias'].forEach(x => h.append(el('th', {}, x)));
+    t.append(h);
+    for (let i = 0; i < m; i++) {
+      const tr = el('tr'); [`${i + 1}`, share(fixed, i), share(shuffled, i), pct(1 / m)].forEach(x => tr.append(el('td', {}, x)));
+      t.append(tr);
+    }
+    const tr = el('tr'); [el('b', {}, 'Top 3 positions'), el('b', {}, top3(fixed)), el('b', {}, top3(shuffled)), el('b', {}, pct(3 / m))].forEach(x => { const td = el('td'); td.append(x); tr.append(td); });
+    t.append(tr);
+    const box = el('div', { style: 'margin-bottom:16px' }); box.append(t); og.append(box);
+  });
+  ob.append(og, el('p', { class: 'note' }, '– = fewer than 5 responses. Fixed-order responses came before shuffling started, so they also differ in time and audience.'));
+
   // Free text
   const quotes = (title, note, items) => {
     if (!items.length) return;
@@ -226,13 +255,15 @@ async function load() {
   };
   const qcode = id => def.questions.find(q => q.id === id)?.code || id;
   quotes('"Other" answers', 'Group these into themes by hand.', d.other.map(o => [`${qcode(o.q)} Other`, o.text]));
-  quotes('Comments', `Answers to ${qcode('comments')}, the open question.`, d.comments.map(o => ['', o.text]));
+  quotes('Comments', `Answers to ${qcode('comments')}, the open question.`, d.comments.filter(o => o.q === 'comments').map(o => ['', o.text]));
+  quotes('About the respondents', `Answers to ${qcode('about')}: who people are and whether they may be contacted.`, d.comments.filter(o => o.q === 'about').map(o => ['', o.text]));
 
   out.replaceChildren(frag);
   stamp();
 }
 function stamp() { document.getElementById('updated').textContent = `Live. Updated ${new Date().toLocaleTimeString()}, refreshes every 30 seconds.`; }
 roleSel.addEventListener('change', load);
+orderSel.addEventListener('change', load);
 load(); setInterval(load, 30000);
 </script>
 </body>

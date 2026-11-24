@@ -74,6 +74,9 @@ def validate(body, q):
     text = body.get("text") or {}
     if not isinstance(text, dict):
         raise ValueError("bad text")
+    order = body.get("order") or {}
+    if not isinstance(order, dict):
+        raise ValueError("bad order")
     out = {"answers": {}, "other": {}, "text": {}, "email": ""}
     for x in q["questions"]:
         qid, t = x["id"], x["type"]
@@ -98,23 +101,41 @@ def validate(body, q):
         if len(picks) > 1 and any(opts[p].get("exclusive") for p in picks):
             raise ValueError(f"{qid}: exclusive option combined")
         out["answers"][qid] = picks
+        seen = order.get(qid)  # the order this person saw; absent = fixed order (before shuffling)
+        if seen is not None and t == "rank":
+            if not isinstance(seen, list) or not all(isinstance(p, str) for p in seen) or sorted(seen) != sorted(opts):
+                raise ValueError(f"{qid}: bad order")
+            out.setdefault("order", {})[qid] = seen
         if any(opts[p].get("other") for p in picks):
             out["other"][qid] = str(other.get(qid) or "").strip()[:MAX_TEXT]
     src = str(body.get("src") or "")[:40]
     return out, src if re.fullmatch(r"[A-Za-z0-9_-]*", src) else ""
 
 
-def score(rows, q, role=None):
+def shown(r, x):
+    """Option ids in the order this person saw them. Responses without a recorded order saw
+    questions.json order, which has not changed since launch; keep it that way."""
+    return r.get("order", {}).get(x["id"]) or [o["id"] for o in x["options"]]
+
+
+def score(rows, q, role=None, order=None):
     """rows: list of stored dicts. Rank 1 of max N scores N points, rank 2 scores N-1, and so on."""
     by_role = {}  # counted over all responses, so the role filter can show every role's count
     for r in rows:
         k = r["answers"].get("role", ["?"])[0]
         by_role[k] = by_role.get(k, 0) + 1
+    by_order = {"fixed": 0, "shuffled": 0}
+    for r in rows:
+        by_order["shuffled" if r.get("order") else "fixed"] += 1
     total = len(rows)
     if role:
         rows = [r for r in rows if r["answers"].get("role", [None])[0] == role]
+    both = rows  # the order-bias card compares fixed and shuffled, so it ignores the order filter
+    if order in ("fixed", "shuffled"):
+        rows = [r for r in rows if bool(r.get("order")) == (order == "shuffled")]
     n = len(rows)
-    res = {"n": n, "total": total, "small": n < 5, "questions": [], "other": [], "comments": [], "by_role": by_role, "by_src": {}}
+    res = {"n": n, "total": total, "small": n < 5, "questions": [], "other": [], "comments": [],
+           "by_role": by_role, "by_order": by_order, "by_src": {}}
     for r in rows:
         res["by_src"][r.get("src") or "direct"] = res["by_src"].get(r.get("src") or "direct", 0) + 1
         for qid, text in r.get("other", {}).items():
@@ -137,7 +158,21 @@ def score(rows, q, role=None):
                  "share": stats[o["id"]][0] / (n * m) if n else 0,
                  "pct": stats[o["id"]][1] / n if n else 0} for o in x["options"]]
         opts.sort(key=lambda o: -o["points"])
-        res["questions"].append({"id": x["id"], "code": code(x), "text": x["text"], "options": opts})
+        # Picks per screen position. Only shuffled options count; Other / None of these stay pinned last.
+        m_pos = sum(1 for o in x["options"] if not (o.get("other") or o.get("exclusive")))
+        position = {}
+        for k in ("fixed", "shuffled"):
+            grp = [r for r in both if bool(r.get("order")) == (k == "shuffled")]
+            picks, first = [0] * m_pos, [0] * m_pos
+            for r in grp:
+                seen = shown(r, x)
+                for i, p in enumerate(r["answers"].get(x["id"], [])):
+                    pos = seen.index(p) if p in seen else m_pos
+                    if pos < m_pos:
+                        picks[pos] += 1
+                        first[pos] += i == 0
+            position[k] = {"n": len(grp), "picks": picks, "first": first}
+        res["questions"].append({"id": x["id"], "code": code(x), "text": x["text"], "options": opts, "position": position})
     # Value x difficulty: split each axis at the mean share across the shared options.
     qd = q.get("quadrant")
     if qd:
@@ -161,6 +196,7 @@ def table(rows, q):
             head.append(code(x)); qs.append(x)
         elif x["type"] == "rank":
             head += [f"{code(x)}_rank{i + 1}" for i in range(x["max"])]; qs.append(x)
+            head.append(f"{code(x)}_shown")
         if any(o.get("other") for o in x.get("options", [])):
             head.append(f"{code(x)}_other")
     has_email = any(x["type"] == "email" for x in q["questions"])
@@ -176,6 +212,9 @@ def table(rows, q):
             labels = {o["id"]: f"{code(x, o)} {o['label']}" for o in x["options"]}
             picks = [labels.get(p, p) for p in r["answers"].get(x["id"], [])]
             line += (picks[:1] or [""]) if x["type"] == "single" else picks + [""] * (x["max"] - len(picks))
+            if x["type"] == "rank":  # option codes in the order shown; blank = fixed order
+                codes = {o["id"]: o.get("code", o["id"]) for o in x["options"]}
+                line.append(",".join(codes.get(p, p) for p in r.get("order", {}).get(x["id"], [])))
             if any(o.get("other") for o in x["options"]):
                 line.append(r.get("other", {}).get(x["id"], ""))
         if has_email:
@@ -316,9 +355,10 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/admin/responses.json":
                 return self.send(200, json.dumps({"questions_def": load_questions(), "rows": manage_rows()}))
             if u.path == "/admin/results.json":
-                role = parse_qs(u.query).get("role", [None])[0]
+                qs = parse_qs(u.query)
+                role, order = qs.get("role", [None])[0], qs.get("order", [None])[0]
                 q = load_questions()
-                return self.send(200, json.dumps({"questions_def": q, **score(all_rows(), q, role)}))
+                return self.send(200, json.dumps({"questions_def": q, **score(all_rows(), q, role, order)}))
             if u.path == "/admin/export.xlsx":
                 name = f"amconnect-survey-{datetime.now():%Y-%m-%d}.xlsx"
                 return self.send(200, export_xlsx(all_rows(), load_questions()),
@@ -393,12 +433,24 @@ def self_check():
     assert rb["n"] == 1 and rb["by_role"] == {"a": 2, "b": 1} and rb["total"] == 3, rb
     for bad in ({"answers": {"role": "a", "v": ["x", "x"], "d": ["z"]}},
                 {"answers": {"role": "a", "v": ["w"], "d": ["z"]}},
-                {"answers": {"role": "a", "v": ["x", "y", "z", "x"], "d": ["z"]}}):
+                {"answers": {"role": "a", "v": ["x", "y", "z", "x"], "d": ["z"]}},
+                {"answers": {"role": "a", "v": ["x"], "d": ["z"]}, "order": {"v": ["x", "y"]}},
+                {"answers": {"role": "a", "v": ["x"], "d": ["z"]}, "order": {"v": ["x", "y", "y"]}}):
         try:
             validate(bad, q)
             raise AssertionError(f"accepted {bad}")
         except ValueError:
             pass
+    # Order marker: stored when sent, absent otherwise; picks are counted by screen position.
+    ok2, _ = validate({"answers": {"role": "a", "v": ["z", "x"], "d": ["y"]}, "order": {"v": ["z", "y", "x"]}}, q)
+    assert ok2["order"] == {"v": ["z", "y", "x"]} and "order" not in ok, ok2
+    assert table([dict(ok2, ts="t")], q)[1][0][6] == "z,y,x"
+    rs = score(rows + [ok2], q)
+    assert rs["by_order"] == {"fixed": 3, "shuffled": 1}, rs["by_order"]
+    pv = rs["questions"][0]["position"]
+    assert pv["fixed"] == {"n": 3, "picks": [3, 2, 1], "first": [2, 1, 0]}, pv
+    assert pv["shuffled"] == {"n": 1, "picks": [1, 0, 1], "first": [1, 0, 0]}, pv
+    assert score(rows + [ok2], q, order="shuffled")["n"] == 1
 
 
 if __name__ == "__main__":

@@ -48,6 +48,17 @@ The dashboard calculates steps 1–3 live. Steps 4–6 are done by hand.
 5. **Triangulate with the conversation logs.** At an expected 20–50 responses, the survey shows direction, not statistical results. Act on a finding only when the survey and the conversations agree.
 6. **Output:** a one-page ranked list of decisions by module for the Jan–Feb workshops, built from the spreadsheet download.
 
+## Option order
+
+The first responses suggested that people tend to pick the first options in a list. From 24 Nov 2026, the options of the ranked questions (Q2–Q5) are shuffled for every respondent. "Other" and "None of these" always stay last, and Q1 (role) keeps its fixed order.
+
+- **What changes and what doesn't:** only the screen order changes. Answers are still saved by option `id`, so codes such as `Q2.1` and all analysis stay the same.
+- **The marker:** every shuffled response stores the order that person saw. Responses without one are "fixed order": they came before shuffling and saw the `questions.json` order. Don't reorder options in `questions.json`, or the fixed-order responses can no longer be read correctly.
+- **Dashboard:** the **Option order** filter shows fixed-order or shuffled responses only. The **Order bias** card shows each screen position's share of the picks. If people ignore the order, every position gets about the same share, and the card lists that expected share. In shuffled responses, a top-3 share well above the expected one means people tick whatever is shown first. Fixed-order and shuffled responses also differ in time and audience, so compare them with care.
+- **Excel:** a `Qn_shown` column per ranked question lists the option codes in the order shown. It is blank for fixed-order responses.
+
+Shuffling doesn't stop people ticking the top three. It spreads those picks evenly across all options, so only real preferences stand out in the totals.
+
 ## Critique of the original questions
 
 **What works**
@@ -71,5 +82,5 @@ The dashboard calculates steps 1–3 live. Steps 4–6 are done by hand.
 
 ## Still to decide
 - **Survey title.** It still says "Investor Quick Survey" although government officials can now answer. Consider "AMConnect Quick Survey".
-- **Follow-up contacts.** The email question was replaced by the comments question, so the survey no longer collects a list of people for follow-up calls. To bring it back, add a question with `"type": "email"` to `config/questions.json`; the server still supports it.
+- **Follow-up contacts.** The email question was replaced by an optional open question (Q7) where people can give their name, organisation, designation and country, and say whether we may contact them. It is free text, so build any contact list from it by hand. For a structured email field, add a question with `"type": "email"` to `config/questions.json`; the server still supports it.
 - **QR code.** Generate it once Akvo confirms the URL.

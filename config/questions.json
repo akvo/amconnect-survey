@@ -88,6 +88,15 @@
       "optional": true,
       "text": "Anything else you would like to tell us?",
       "hint": "Optional. Add any information or comments, for example, data you need or how you would use AMConnect."
+    },
+    {
+      "id": "about",
+      "code": "Q7",
+      "type": "text",
+      "optional": true,
+      "text": "Would you like to tell us a little about yourself?",
+      "hint": "Optional. For example, your name, organisation, designation and country, and whether we may contact you.",
+      "placeholder": "Name, organisation, designation, country…"
     }
   ]
 }
